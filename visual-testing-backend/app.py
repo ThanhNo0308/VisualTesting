@@ -22,15 +22,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Tạo thư mục
-UPLOAD_FOLDER = "uploads"
-RESULT_FOLDER = "results"
-Path(UPLOAD_FOLDER).mkdir(exist_ok=True)
-Path(RESULT_FOLDER).mkdir(exist_ok=True)
+# ✅ TẠO THƯMỤC TRONG PROJECT DIRECTORY
+# Lấy đường dẫn của file hiện tại (app.py)
+BASE_DIR = Path(__file__).parent
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+RESULT_FOLDER = BASE_DIR / "results"
 
-# Mount static files
-app.mount("/uploads", StaticFiles(directory=UPLOAD_FOLDER), name="uploads")
-app.mount("/results", StaticFiles(directory=RESULT_FOLDER), name="results")
+# Tạo thư mục nếu chưa có
+UPLOAD_FOLDER.mkdir(exist_ok=True)
+RESULT_FOLDER.mkdir(exist_ok=True)
+
+# Mount static files với đường dẫn tuyệt đối
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_FOLDER)), name="uploads")
+app.mount("/results", StaticFiles(directory=str(RESULT_FOLDER)), name="results")
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
 
@@ -166,16 +170,17 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         alpha = 0.3
         heatmap_overlay = cv2.addWeighted(img2_resized, 1-alpha, heatmap, alpha, 0)
         
-        # Lưu ảnh kết quả
+        # Lưu ảnh kết quả với đường dẫn tuyệt đối
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         result_filename = f"comparison_result_{timestamp}.jpg"
         heatmap_filename = f"heatmap_{timestamp}.jpg"
         
-        result_path = os.path.join(RESULT_FOLDER, result_filename)
-        heatmap_path = os.path.join(RESULT_FOLDER, heatmap_filename)
+        # ✅ SỬ DỤNG ĐƯỜNG DẪN TUYỆT ĐỐI
+        result_path = RESULT_FOLDER / result_filename
+        heatmap_path = RESULT_FOLDER / heatmap_filename
         
-        cv2.imwrite(result_path, result_img)
-        cv2.imwrite(heatmap_path, heatmap_overlay)
+        cv2.imwrite(str(result_path), result_img)
+        cv2.imwrite(str(heatmap_path), heatmap_overlay)
         
         return {
             'similarity_score': round(similarity_score * 100, 2),
@@ -218,8 +223,9 @@ async def compare_images(
         filename1 = f"{uuid.uuid4()}_{image1.filename}"
         filename2 = f"{uuid.uuid4()}_{image2.filename}"
         
-        filepath1 = os.path.join(UPLOAD_FOLDER, filename1)
-        filepath2 = os.path.join(UPLOAD_FOLDER, filename2)
+        # ✅ SỬ DỤNG ĐƯỜNG DẪN TUYỆT ĐỐI
+        filepath1 = UPLOAD_FOLDER / filename1
+        filepath2 = UPLOAD_FOLDER / filename2
         
         # Lưu file
         with open(filepath1, "wb") as buffer:
@@ -231,7 +237,7 @@ async def compare_images(
             buffer.write(content)
         
         # So sánh ảnh với thuật toán cải tiến
-        result, error = enhanced_compare_images(filepath1, filepath2)
+        result, error = enhanced_compare_images(str(filepath1), str(filepath2))
         
         if error:
             raise HTTPException(status_code=500, detail=error)
@@ -248,4 +254,4 @@ async def compare_images(
         raise HTTPException(status_code=500, detail=f"Lỗi server: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
