@@ -1,9 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { imageService } from '../services/api';
 import '../styles/ComparisonResult.css';
 
 const ComparisonResult = ({ result }) => {
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [modal, setModal] = useState({ isOpen: false, imageUrl: '', title: '' });
+
+  // ✅ ĐỊNH NGHĨA FUNCTIONS TRƯỚC useEffect
+  const openModal = (imageUrl, title) => {
+    setModal({ isOpen: true, imageUrl, title });
+  };
+
+  const closeModal = () => {
+    setModal({ isOpen: false, imageUrl: '', title: '' });
+  };
+
+  // ✅ useEffect SAU KHI ĐÃ ĐỊNH NGHĨA closeModal
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    
+    if (modal.isOpen) {
+      document.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'auto';
+    };
+  }, [modal.isOpen]); // ✅ Thêm closeModal vào dependency nếu ESLint yêu cầu
 
   if (!result) return null;
 
@@ -92,6 +121,11 @@ const ComparisonResult = ({ result }) => {
           </button>
         </div>
       )}
+
+      {/* Hướng dẫn */}
+      <div className="usage-hint">
+        <p>💡 <strong>Click vào ảnh để xem phóng to</strong></p>
+      </div>
       
       <div className="result-grid">
         <div className="result-item">
@@ -99,7 +133,12 @@ const ComparisonResult = ({ result }) => {
           <img
             src={imageService.getImageUrl(result.image1_path)}
             alt="Ảnh gốc"
-            className="result-image"
+            className="result-image clickable"
+            onClick={() => openModal(
+              imageService.getImageUrl(result.image1_path),
+              '📷 Ảnh gốc (Baseline)'
+            )}
+            title="Click để xem phóng to"
           />
         </div>
         
@@ -108,7 +147,12 @@ const ComparisonResult = ({ result }) => {
           <img
             src={imageService.getImageUrl(result.image2_path)}
             alt="Ảnh so sánh"
-            className="result-image"
+            className="result-image clickable"
+            onClick={() => openModal(
+              imageService.getImageUrl(result.image2_path),
+              '🔍 Ảnh so sánh'
+            )}
+            title="Click để xem phóng to"
           />
         </div>
         
@@ -122,7 +166,14 @@ const ComparisonResult = ({ result }) => {
               : imageService.getImageUrl(result.result_image, 'results')
             }
             alt={showHeatmap ? 'Heatmap' : 'Kết quả so sánh'}
-            className="result-image"
+            className="result-image clickable"
+            onClick={() => openModal(
+              showHeatmap && result.heatmap_image 
+                ? imageService.getImageUrl(result.heatmap_image, 'results')
+                : imageService.getImageUrl(result.result_image, 'results'),
+              showHeatmap ? '🔥 Heatmap khác biệt' : '📊 Kết quả với highlight'
+            )}
+            title="Click để xem phóng to"
           />
         </div>
       </div>
@@ -156,6 +207,27 @@ const ComparisonResult = ({ result }) => {
                 ... và {result.difference_details.length - 10} vùng khác biệt khác
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal xem ảnh */}
+      {modal.isOpen && (
+        <div 
+          className="modal-backdrop" 
+          onClick={(e) => e.target === e.currentTarget && closeModal()}
+        >
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>{modal.title}</h3>
+              <button className="modal-close" onClick={closeModal}>✕</button>
+            </div>
+            <div className="modal-body">
+              <img src={modal.imageUrl} alt={modal.title} className="modal-image" />
+            </div>
+            <div className="modal-footer">
+              <p>💡 Nhấn ESC hoặc click bên ngoài để đóng</p>
+            </div>
           </div>
         </div>
       )}

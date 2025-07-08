@@ -273,3 +273,211 @@
     font-size: 20px;
   }
 }
+
+.usage-hint {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.usage-hint p {
+  margin: 0;
+  color: #1565c0;
+  font-size: 14px;
+}
+
+/* Clickable images */
+.result-image.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.result-image.clickable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  border: 2px solid #007bff;
+}
+
+/* Modal styles */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 95vw;
+  max-height: 95vh;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+  overflow: hidden; /* ✅ Thêm để tránh overflow */
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px; /* ✅ Giảm padding */
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+  flex-shrink: 0; /* ✅ Không cho header co lại */
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.modal-close {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.modal-body {
+  flex: 1; /* ✅ Lấy toàn bộ không gian còn lại */
+  overflow: auto;
+  padding: 15px; /* ✅ Giảm padding */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0; /* ✅ Quan trọng: cho phép flex shrink */
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-top: 110px;
+}
+
+.modal-footer {
+  padding: 10px 15px; /* ✅ Giảm padding */
+  border-top: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+  text-align: center;
+  flex-shrink: 0; /* ✅ Không cho footer co lại */
+}
+
+.modal-footer p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 13px; /* ✅ Giảm font size */
+  font-style: italic;
+}
+
+/* Mobile responsive - CẢI THIỆN */
+@media (max-width: 768px) {
+  .modal-backdrop {
+    padding: 10px;
+  }
+  
+  .modal-content {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 8px; /* ✅ Giảm border radius trên mobile */
+  }
+  
+  .modal-header {
+    padding: 12px 15px;
+    border-radius: 8px 8px 0 0;
+  }
+  
+  .modal-header h3 {
+    font-size: 16px;
+  }
+  
+  .modal-close {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  
+  .modal-body {
+    padding: 10px;
+  }
+  
+  .modal-footer {
+    padding: 8px 12px;
+    border-radius: 0 0 8px 8px;
+  }
+  
+  .modal-footer p {
+    font-size: 12px;
+  }
+}
+
+/* ✅ THÊM: Styles cho ảnh rất lớn */
+@media (min-width: 1200px) {
+  .modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+  }
+}
+
+/* ✅ THÊM: Đảm bảo ảnh không bị overflow */
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
