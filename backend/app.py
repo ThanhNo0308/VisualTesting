@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ TẠO THƯMỤC TRONG PROJECT DIRECTORY
+# ✅ TẠO THƯ MỤC TRONG PROJECT DIRECTORY
 # Lấy đường dẫn của file hiện tại (app.py)
 BASE_DIR = Path(__file__).parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
