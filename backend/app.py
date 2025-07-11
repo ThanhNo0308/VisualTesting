@@ -183,7 +183,7 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         return None, f"Lỗi xử lý ảnh: {str(e)}"
 
 def simple_template_matching(template_path: str, screenshot_path: str):
-    """Template matching đơn giản"""
+    """Template matching đơn giản - trả về kích thước thực tế tìm thấy"""
     try:
         template = cv2.imread(template_path)
         screenshot = cv2.imread(screenshot_path)
@@ -223,19 +223,23 @@ def simple_template_matching(template_path: str, screenshot_path: str):
                 best_confidence = max_val
                 best_match = {
                     'location': max_loc,
-                    'size': (w, h),  # Kích thước gốc của template
+                    'actual_size': (new_w, new_h),  # ✅ Kích thước thực tế tìm thấy
+                    'original_size': (w, h),        # Kích thước gốc template
                     'scale': scale
                 }
         
-        if best_match and best_confidence > 0.3:  # Giảm ngưỡng xuống 0.3
+        if best_match and best_confidence > 0.3:
             x, y = best_match['location']
-            w, h = best_match['size']
+            # ✅ SỬ DỤNG KÍCH THƯỚC THỰC TẾ
+            actual_w, actual_h = best_match['actual_size']
             
-            print(f"✅ Tìm thấy! Vị trí: ({x}, {y}), Confidence: {best_confidence:.3f}")
+            print(f"✅ Tìm thấy! Vị trí: ({x}, {y}), Kích thước thực tế: {actual_w}x{actual_h}, Confidence: {best_confidence:.3f}")
             return {
                 'found': True,
-                'x': x, 'y': y, 'width': w, 'height': h,
-                'confidence': best_confidence
+                'x': x, 'y': y, 
+                'width': actual_w, 'height': actual_h,  # ✅ Trả về kích thước thực tế
+                'confidence': best_confidence,
+                'scale': best_match['scale']
             }, None
         else:
             print(f"❌ Không tìm thấy template (best confidence: {best_confidence:.3f})")
@@ -243,9 +247,56 @@ def simple_template_matching(template_path: str, screenshot_path: str):
             
     except Exception as e:
         return None, f"Lỗi template matching: {str(e)}"
+    
+def crop_exact_banner(screenshot_img, x, y, w, h, template_path, timestamp):
+    """Crop chính xác banner và resize về kích thước template để so sánh"""
+    try:
+        # ✅ BƯỚC 1: Crop chính xác vùng banner tìm thấy
+        print(f"✂️ Crop banner tại: ({x}, {y}) với kích thước: {w}x{h}")
+        
+        # Đảm bảo không crop ngoài biên ảnh
+        img_h, img_w = screenshot_img.shape[:2]
+        x_safe = max(0, x)
+        y_safe = max(0, y)
+        w_safe = min(w, img_w - x_safe)
+        h_safe = min(h, img_h - y_safe)
+        
+        # Crop chính xác banner
+        cropped_banner = screenshot_img[y_safe:y_safe+h_safe, x_safe:x_safe+w_safe]
+        
+        if cropped_banner.size == 0:
+            return None, "Vùng crop trống"
+        
+        print(f"📐 Banner đã crop: {cropped_banner.shape[1]}x{cropped_banner.shape[0]}")
+        
+        # ✅ BƯỚC 2: Resize về kích thước template để so sánh công bằng
+        template_img = cv2.imread(template_path)
+        template_h, template_w = template_img.shape[:2]
+        
+        # Resize banner về kích thước template
+        banner_resized = cv2.resize(cropped_banner, (template_w, template_h))
+        
+        # ✅ BƯỚC 3: Lưu cả ảnh gốc và ảnh đã resize
+        # Lưu banner gốc (kích thước thực tế)
+        original_filename = f"banner_original_{timestamp}.png"
+        original_path = UPLOAD_FOLDER / original_filename
+        cv2.imwrite(str(original_path), cropped_banner)
+        
+        # Lưu banner đã resize (để so sánh)
+        resized_filename = f"banner_resized_{timestamp}.png"
+        resized_path = UPLOAD_FOLDER / resized_filename
+        cv2.imwrite(str(resized_path), banner_resized)
+        
+        print(f"✅ Đã lưu banner gốc: {original_filename}")
+        print(f"✅ Đã lưu banner resize: {resized_filename}")
+        
+        return resized_filename, None
+        
+    except Exception as e:
+        return None, f"Lỗi crop banner: {str(e)}"
 
 def capture_and_find_banner(url: str, template_path: str):
-    """Chụp trang web và tìm banner"""
+    """Chụp trang web và tìm banner - cải tiến crop chính xác"""
     try:
         # Setup Chrome
         chrome_options = Options()
@@ -295,37 +346,31 @@ def capture_and_find_banner(url: str, template_path: str):
                     os.remove(str(screenshot_path))
                 return None, "Không tìm thấy banner trên trang web"
             
-            # Crop vùng tìm thấy
+            # ✅ CROP CHÍNH XÁC BANNER
             screenshot_img = cv2.imread(str(screenshot_path))
-            x, y, w, h = match_result['x'], match_result['y'], match_result['width'], match_result['height']
+            x = match_result['x']
+            y = match_result['y']
+            w = match_result['width']   # Kích thước thực tế
+            h = match_result['height']  # Kích thước thực tế
             
-            print(f"✂️ Crop vùng: ({x}, {y}) -> ({x+w}, {y+h})")
+            print(f"🎯 Banner tìm thấy:")
+            print(f"   - Vị trí: ({x}, {y})")
+            print(f"   - Kích thước thực tế: {w}x{h}")
+            print(f"   - Scale: {match_result['scale']:.2f}")
+            print(f"   - Confidence: {match_result['confidence']:.3f}")
             
-            # Đảm bảo không crop ngoài biên
-            img_h, img_w = screenshot_img.shape[:2]
-            x = max(0, x)
-            y = max(0, y)
-            w = min(w, img_w - x)
-            h = min(h, img_h - y)
+            # Crop banner chính xác
+            banner_filename, error = crop_exact_banner(
+                screenshot_img, x, y, w, h, template_path, timestamp
+            )
             
-            cropped_img = screenshot_img[y:y+h, x:x+w]
-            
-            # Resize về kích thước template
-            template_img = cv2.imread(template_path)
-            template_h, template_w = template_img.shape[:2]
-            final_img = cv2.resize(cropped_img, (template_w, template_h))
-            
-            # Lưu ảnh đã crop
-            cropped_filename = f"cropped_banner_{timestamp}.png"
-            cropped_path = UPLOAD_FOLDER / cropped_filename
-            cv2.imwrite(str(cropped_path), final_img)
-            
-            print(f"✅ Đã crop và lưu: {cropped_filename}")
+            if error:
+                return None, error
             
             # Cleanup screenshot gốc
             os.remove(str(screenshot_path))
             
-            return cropped_filename, None
+            return banner_filename, None
             
         finally:
             driver.quit()
