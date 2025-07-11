@@ -326,8 +326,9 @@
   max-height: 95vh;
   display: flex;
   flex-direction: column;
-  animation: modalSlideIn 0.3s ease-out;
-  overflow: hidden; /* ✅ Thêm để tránh overflow */
+  overflow: hidden; 
+  min-height: 300px;
+  min-width: 300px;
 }
 
 @keyframes modalSlideIn {
@@ -345,11 +346,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px; /* ✅ Giảm padding */
+  padding: 15px 20px; 
   border-bottom: 1px solid #e9ecef;
   background: #f8f9fa;
   border-radius: 12px 12px 0 0;
-  flex-shrink: 0; /* ✅ Không cho header co lại */
+  flex-shrink: 0; 
 }
 
 .modal-header h3 {
@@ -377,13 +378,13 @@
 }
 
 .modal-body {
-  flex: 1; /* ✅ Lấy toàn bộ không gian còn lại */
+  flex: 1;
   overflow: auto;
-  padding: 15px; /* ✅ Giảm padding */
+  padding: 15px; 
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 0; /* ✅ Quan trọng: cho phép flex shrink */
+  min-height: 200px;
 }
 
 .modal-image {
@@ -394,26 +395,25 @@
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  margin-top: 110px;
+  margin-top: 100px;
 }
 
 .modal-footer {
-  padding: 10px 15px; /* ✅ Giảm padding */
+  padding: 10px 15px; 
   border-top: 1px solid #e9ecef;
   background: #f8f9fa;
   border-radius: 0 0 12px 12px;
   text-align: center;
-  flex-shrink: 0; /* ✅ Không cho footer co lại */
+  flex-shrink: 0; 
 }
 
 .modal-footer p {
   margin: 0;
   color: #6c757d;
-  font-size: 13px; /* ✅ Giảm font size */
+  font-size: 13px; 
   font-style: italic;
 }
 
-/* Mobile responsive - CẢI THIỆN */
 @media (max-width: 768px) {
   .modal-backdrop {
     padding: 10px;
@@ -422,7 +422,7 @@
   .modal-content {
     max-width: 100%;
     max-height: 100%;
-    border-radius: 8px; /* ✅ Giảm border radius trên mobile */
+    border-radius: 8px; 
   }
   
   .modal-header {
@@ -443,6 +443,10 @@
   .modal-body {
     padding: 10px;
   }
+
+  .modal-image {
+    margin-top: 0px;
+  }
   
   .modal-footer {
     padding: 8px 12px;
@@ -454,7 +458,6 @@
   }
 }
 
-/* ✅ THÊM: Styles cho ảnh rất lớn */
 @media (min-width: 1200px) {
   .modal-content {
     max-width: 90vw;
@@ -462,7 +465,6 @@
   }
 }
 
-/* ✅ THÊM: Đảm bảo ảnh không bị overflow */
 .modal-body::-webkit-scrollbar {
   width: 6px;
   height: 6px;

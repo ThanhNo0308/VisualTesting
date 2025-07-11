@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/LoadingSpinner.css';
+import '../assets/styles/LoadingSpinner.css';
 
 const LoadingSpinner = ({ message = 'Đang xử lý...' }) => {
   return (

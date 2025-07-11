@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { imageService } from '../services/api';
-import '../styles/ComparisonResult.css';
+import '../assets/styles/HomePage.css';
+import '../assets/styles/ResultPage.css';
+
 
 const ComparisonResult = ({ result }) => {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, imageUrl: '', title: '' });
 
-  // ✅ ĐỊNH NGHĨA FUNCTIONS TRƯỚC useEffect
   const openModal = (imageUrl, title) => {
     setModal({ isOpen: true, imageUrl, title });
   };
@@ -14,25 +15,6 @@ const ComparisonResult = ({ result }) => {
   const closeModal = () => {
     setModal({ isOpen: false, imageUrl: '', title: '' });
   };
-
-  // ✅ useEffect SAU KHI ĐÃ ĐỊNH NGHĨA closeModal
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') closeModal();
-    };
-    
-    if (modal.isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-    
-    return () => {
-      document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'auto';
-    };
-  }, [modal.isOpen]); // ✅ Thêm closeModal vào dependency nếu ESLint yêu cầu
 
   if (!result) return null;
 
@@ -72,7 +54,6 @@ const ComparisonResult = ({ result }) => {
         </div>
       </div>
       
-      {/* Thống kê chi tiết */}
       <div className="analysis-details">
         <div className="analysis-item">
           <strong>Tổng số vùng khác biệt:</strong> {result.differences_count}
@@ -89,7 +70,6 @@ const ComparisonResult = ({ result }) => {
         )}
       </div>
 
-      {/* Phân loại khác biệt theo mức độ */}
       {result.difference_details && (
         <div className="difference-levels">
           <h3>Phân loại khác biệt:</h3>
@@ -110,7 +90,6 @@ const ComparisonResult = ({ result }) => {
         </div>
       )}
       
-      {/* Toggle heatmap */}
       {result.heatmap_image && (
         <div className="heatmap-toggle">
           <button 
@@ -122,7 +101,6 @@ const ComparisonResult = ({ result }) => {
         </div>
       )}
 
-      {/* Hướng dẫn */}
       <div className="usage-hint">
         <p>💡 <strong>Click vào ảnh để xem phóng to</strong></p>
       </div>
@@ -178,7 +156,6 @@ const ComparisonResult = ({ result }) => {
         </div>
       </div>
 
-      {/* Chi tiết từng vùng khác biệt */}
       {result.difference_details && result.difference_details.length > 0 && (
         <div className="differences-details">
           <h3>Chi tiết các vùng khác biệt:</h3>
@@ -211,7 +188,6 @@ const ComparisonResult = ({ result }) => {
         </div>
       )}
 
-      {/* Modal xem ảnh */}
       {modal.isOpen && (
         <div 
           className="modal-backdrop" 
@@ -224,9 +200,6 @@ const ComparisonResult = ({ result }) => {
             </div>
             <div className="modal-body">
               <img src={modal.imageUrl} alt={modal.title} className="modal-image" />
-            </div>
-            <div className="modal-footer">
-              <p>💡 Nhấn ESC hoặc click bên ngoài để đóng</p>
             </div>
           </div>
         </div>
