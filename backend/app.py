@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form  # ✅ THÊM Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -10,6 +10,13 @@ from pathlib import Path
 import uuid
 from datetime import datetime
 import uvicorn
+
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+from typing import Optional
 
 app = FastAPI(title="Visual Testing API", version="1.0.0")
 
@@ -23,16 +30,13 @@ app.add_middleware(
 )
 
 # ✅ TẠO THƯ MỤC TRONG PROJECT DIRECTORY
-# Lấy đường dẫn của file hiện tại (app.py)
 BASE_DIR = Path(__file__).parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 RESULT_FOLDER = BASE_DIR / "results"
 
-# Tạo thư mục nếu chưa có
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 RESULT_FOLDER.mkdir(exist_ok=True)
 
-# Mount static files với đường dẫn tuyệt đối
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_FOLDER)), name="uploads")
 app.mount("/results", StaticFiles(directory=str(RESULT_FOLDER)), name="results")
 
@@ -73,41 +77,31 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         similarity_score, ssim_diff = ssim(gray1, gray2, full=True)
         
         # === PHƯƠNG PHÁP 2: So sánh màu sắc trực tiếp ===
-        # Tính khoảng cách Euclidean giữa các pixel màu
         color_diff = np.sqrt(np.sum((img1_resized.astype(float) - img2_resized.astype(float)) ** 2, axis=2))
         
         # === PHƯƠNG PHÁP 3: So sánh từng kênh màu ===
         b1, g1, r1 = cv2.split(img1_resized)
         b2, g2, r2 = cv2.split(img2_resized)
         
-        # Tính khác biệt cho từng kênh màu
         diff_b = cv2.absdiff(b1, b2)
         diff_g = cv2.absdiff(g1, g2)
         diff_r = cv2.absdiff(r1, r2)
         
-        # Kết hợp khác biệt từ tất cả kênh màu
         channel_diff = np.maximum(np.maximum(diff_b, diff_g), diff_r)
         
         # === PHƯƠNG PHÁP 4: Threshold động ===
-        # Sử dụng nhiều mức threshold khác nhau
-        
-        # Threshold cho SSIM
         ssim_diff_normalized = ((1 - ssim_diff) * 255).astype(np.uint8)
         _, ssim_thresh = cv2.threshold(ssim_diff_normalized, 30, 255, cv2.THRESH_BINARY)
         
-        # Threshold cho màu sắc (nhạy hơn)
         color_diff_normalized = np.clip(color_diff * 2, 0, 255).astype(np.uint8)
         _, color_thresh = cv2.threshold(color_diff_normalized, 20, 255, cv2.THRESH_BINARY)
         
-        # Threshold cho từng kênh màu
         _, channel_thresh = cv2.threshold(channel_diff, 15, 255, cv2.THRESH_BINARY)
         
         # === KẾT HOP TẤT CẢ PHƯƠNG PHÁP ===
-        # Kết hợp tất cả mask khác biệt
         combined_mask = cv2.bitwise_or(ssim_thresh, color_thresh)
         combined_mask = cv2.bitwise_or(combined_mask, channel_thresh)
         
-        # Áp dụng morphological operations để làm sạch noise
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
@@ -115,39 +109,32 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         # === TÌM VÀ VẼ KHÁC BIỆT ===
         contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        # Tạo ảnh kết quả
         result_img = img2_resized.copy()
-        
-        # Vẽ khung đỏ với các kích thước khác nhau tùy theo mức độ khác biệt
         differences_count = 0
         difference_details = []
         
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area > 25:  # Giảm ngưỡng diện tích để phát hiện khác biệt nhỏ hơn
+            if area > 25:
                 x, y, w, h = cv2.boundingRect(contour)
                 
-                # Tính mức độ khác biệt trong vùng này
                 region_diff = color_diff[y:y+h, x:x+w]
                 avg_difference = np.mean(region_diff)
                 
-                # Chọn màu và độ dày viền dựa trên mức độ khác biệt
                 if avg_difference > 50:
-                    color = (0, 0, 255)  # Đỏ - khác biệt lớn
+                    color = (0, 0, 255)
                     thickness = 3
                     diff_level = "high"
                 elif avg_difference > 25:
-                    color = (0, 165, 255)  # Cam - khác biệt trung bình  
+                    color = (0, 165, 255)
                     thickness = 2
                     diff_level = "medium"
                 else:
-                    color = (0, 255, 255)  # Vàng - khác biệt nhỏ
+                    color = (0, 255, 255)
                     thickness = 2
                     diff_level = "low"
                 
                 cv2.rectangle(result_img, (x, y), (x + w, y + h), color, thickness)
-                
-                # Thêm nhãn mức độ khác biệt
                 cv2.putText(result_img, diff_level, (x, y-5), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
                 
@@ -162,20 +149,16 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
                     "level": diff_level
                 })
         
-        # === TẠO ẢNH HEATMAP KHÁC BIỆT ===
-        # Tạo heatmap để hiển thị mức độ khác biệt
+        # === TẠO ẢNH HEATMAP ===
         heatmap = cv2.applyColorMap(color_diff_normalized, cv2.COLORMAP_JET)
-        
-        # Kết hợp heatmap với ảnh gốc
         alpha = 0.3
         heatmap_overlay = cv2.addWeighted(img2_resized, 1-alpha, heatmap, alpha, 0)
         
-        # Lưu ảnh kết quả với đường dẫn tuyệt đối
+        # Lưu ảnh kết quả
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         result_filename = f"comparison_result_{timestamp}.jpg"
         heatmap_filename = f"heatmap_{timestamp}.jpg"
         
-        # ✅ SỬ DỤNG ĐƯỜNG DẪN TUYỆT ĐỐI
         result_path = RESULT_FOLDER / result_filename
         heatmap_path = RESULT_FOLDER / heatmap_filename
         
@@ -199,59 +182,252 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
     except Exception as e:
         return None, f"Lỗi xử lý ảnh: {str(e)}"
 
-# Giữ lại function cũ cho compatibility
-def compare_images_ssim(image1_path: str, image2_path: str):
-    return enhanced_compare_images(image1_path, image2_path)
+def simple_template_matching(template_path: str, screenshot_path: str):
+    """Template matching đơn giản"""
+    try:
+        template = cv2.imread(template_path)
+        screenshot = cv2.imread(screenshot_path)
+        
+        if template is None or screenshot is None:
+            return None, "Không thể đọc template hoặc screenshot"
+        
+        template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        screenshot_gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+        
+        h, w = template_gray.shape
+        print(f"🔍 Template size: {w}x{h}")
+        print(f"📸 Screenshot size: {screenshot_gray.shape[1]}x{screenshot_gray.shape[0]}")
+        
+        # Template matching với multiple scales
+        best_match = None
+        best_confidence = 0
+        
+        scales = [1.0, 0.8, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2]
+        
+        for scale in scales:
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            
+            if new_w < 30 or new_h < 30:
+                continue
+            if new_w > screenshot_gray.shape[1] or new_h > screenshot_gray.shape[0]:
+                continue
+            
+            resized_template = cv2.resize(template_gray, (new_w, new_h))
+            result = cv2.matchTemplate(screenshot_gray, resized_template, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, max_loc = cv2.minMaxLoc(result)
+            
+            print(f"Scale {scale:.2f}: confidence = {max_val:.3f} at {max_loc}")
+            
+            if max_val > best_confidence:
+                best_confidence = max_val
+                best_match = {
+                    'location': max_loc,
+                    'size': (w, h),  # Kích thước gốc của template
+                    'scale': scale
+                }
+        
+        if best_match and best_confidence > 0.3:  # Giảm ngưỡng xuống 0.3
+            x, y = best_match['location']
+            w, h = best_match['size']
+            
+            print(f"✅ Tìm thấy! Vị trí: ({x}, {y}), Confidence: {best_confidence:.3f}")
+            return {
+                'found': True,
+                'x': x, 'y': y, 'width': w, 'height': h,
+                'confidence': best_confidence
+            }, None
+        else:
+            print(f"❌ Không tìm thấy template (best confidence: {best_confidence:.3f})")
+            return {'found': False}, "Không tìm thấy template trong screenshot"
+            
+    except Exception as e:
+        return None, f"Lỗi template matching: {str(e)}"
+
+def capture_and_find_banner(url: str, template_path: str):
+    """Chụp trang web và tìm banner"""
+    try:
+        # Setup Chrome
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--window-size=1920,1080")
+        
+        try:
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+        except Exception:
+            driver = webdriver.Chrome(options=chrome_options)
+        
+        try:
+            print(f"🌐 Đang truy cập: {url}")
+            driver.get(url)
+            time.sleep(5)
+            
+            # Chụp full page
+            total_height = driver.execute_script("return document.body.scrollHeight")
+            print(f"📏 Tổng chiều cao trang: {total_height}px")
+            
+            driver.set_window_size(1920, total_height)
+            time.sleep(2)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_filename = f"fullpage_{timestamp}.png"
+            screenshot_path = UPLOAD_FOLDER / screenshot_filename
+            
+            driver.save_screenshot(str(screenshot_path))
+            print(f"📸 Đã chụp full page: {screenshot_filename}")
+            
+            # Template matching
+            match_result, error = simple_template_matching(template_path, str(screenshot_path))
+            
+            if error:
+                # Cleanup screenshot
+                if os.path.exists(str(screenshot_path)):
+                    os.remove(str(screenshot_path))
+                return None, error
+            
+            if not match_result['found']:
+                # Cleanup screenshot
+                if os.path.exists(str(screenshot_path)):
+                    os.remove(str(screenshot_path))
+                return None, "Không tìm thấy banner trên trang web"
+            
+            # Crop vùng tìm thấy
+            screenshot_img = cv2.imread(str(screenshot_path))
+            x, y, w, h = match_result['x'], match_result['y'], match_result['width'], match_result['height']
+            
+            print(f"✂️ Crop vùng: ({x}, {y}) -> ({x+w}, {y+h})")
+            
+            # Đảm bảo không crop ngoài biên
+            img_h, img_w = screenshot_img.shape[:2]
+            x = max(0, x)
+            y = max(0, y)
+            w = min(w, img_w - x)
+            h = min(h, img_h - y)
+            
+            cropped_img = screenshot_img[y:y+h, x:x+w]
+            
+            # Resize về kích thước template
+            template_img = cv2.imread(template_path)
+            template_h, template_w = template_img.shape[:2]
+            final_img = cv2.resize(cropped_img, (template_w, template_h))
+            
+            # Lưu ảnh đã crop
+            cropped_filename = f"cropped_banner_{timestamp}.png"
+            cropped_path = UPLOAD_FOLDER / cropped_filename
+            cv2.imwrite(str(cropped_path), final_img)
+            
+            print(f"✅ Đã crop và lưu: {cropped_filename}")
+            
+            # Cleanup screenshot gốc
+            os.remove(str(screenshot_path))
+            
+            return cropped_filename, None
+            
+        finally:
+            driver.quit()
+            
+    except Exception as e:
+        return None, f"Lỗi capture: {str(e)}"
 
 @app.get("/")
 async def root():
-    return {"message": "Visual Testing API", "version": "1.0.0"}
+    return {"message": "Visual Testing API with Template Matching", "version": "2.0.0"}
 
+# ✅ ENDPOINT DUY NHẤT - HỖ TRỢ CẢ 2 CHẾĐỘ
 @app.post("/upload")
 async def compare_images(
     image1: UploadFile = File(...),
-    image2: UploadFile = File(...),
-    sensitivity: str = "high"  # Thêm tham số độ nhạy
+    image2: Optional[UploadFile] = File(None),
+    compare_url: Optional[str] = Form(None),
+    sensitivity: str = Form("high")
 ):
-    """Upload và so sánh 2 ảnh với độ chính xác cao"""
+    """
+    Upload và so sánh ảnh - hỗ trợ 2 chế độ:
+    1. Upload 2 ảnh: image1 + image2
+    2. Template matching: image1 + compare_url
+    """
     try:
-        # Kiểm tra file hợp lệ
-        if not allowed_file(image1.filename) or not allowed_file(image2.filename):
-            raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file ảnh (png, jpg, jpeg, gif, bmp)")
+        # Kiểm tra input
+        if not image2 and not compare_url:
+            raise HTTPException(status_code=400, detail="Cần có ảnh thứ 2 hoặc URL để so sánh")
         
-        # Tạo tên file unique
+        if image2 and compare_url:
+            raise HTTPException(status_code=400, detail="Chỉ có thể chọn ảnh thứ 2 HOẶC URL, không thể cả hai")
+        
+        # Lưu ảnh 1 (template hoặc baseline)
+        if not allowed_file(image1.filename):
+            raise HTTPException(status_code=400, detail="File ảnh không hợp lệ")
+        
         filename1 = f"{uuid.uuid4()}_{image1.filename}"
-        filename2 = f"{uuid.uuid4()}_{image2.filename}"
-        
-        # ✅ SỬ DỤNG ĐƯỜNG DẪN TUYỆT ĐỐI
         filepath1 = UPLOAD_FOLDER / filename1
-        filepath2 = UPLOAD_FOLDER / filename2
         
-        # Lưu file
         with open(filepath1, "wb") as buffer:
             content = await image1.read()
             buffer.write(content)
-            
-        with open(filepath2, "wb") as buffer:
-            content = await image2.read()
-            buffer.write(content)
         
-        # So sánh ảnh với thuật toán cải tiến
+        print(f"💾 Đã lưu ảnh 1: {filename1}")
+        
+        # Xử lý ảnh 2 hoặc URL
+        if image2:
+            # ✅ CHẾĐỘ 1: Upload 2 ảnh
+            print("📁 Chế độ: Upload 2 ảnh")
+            
+            if not allowed_file(image2.filename):
+                raise HTTPException(status_code=400, detail="File ảnh thứ 2 không hợp lệ")
+            
+            filename2 = f"{uuid.uuid4()}_{image2.filename}"
+            filepath2 = UPLOAD_FOLDER / filename2
+            
+            with open(filepath2, "wb") as buffer:
+                content = await image2.read()
+                buffer.write(content)
+            
+            print(f"💾 Đã lưu ảnh 2: {filename2}")
+        
+        else:
+            # ✅ CHẾĐỘ 2: Template matching với URL
+            print(f"🌐 Chế độ: Template Matching với URL: {compare_url}")
+            
+            cropped_filename, error = capture_and_find_banner(compare_url, str(filepath1))
+            
+            if error:
+                raise HTTPException(status_code=400, detail=f"Template matching failed: {error}")
+            
+            filename2 = cropped_filename
+            filepath2 = UPLOAD_FOLDER / filename2
+            
+            print(f"🎯 Template matching thành công: {filename2}")
+        
+        # So sánh ảnh
+        print("🔄 Bắt đầu so sánh ảnh...")
         result, error = enhanced_compare_images(str(filepath1), str(filepath2))
         
         if error:
             raise HTTPException(status_code=500, detail=error)
         
-        # Thêm đường dẫn ảnh gốc
+        # Thêm metadata
         result['image1_path'] = filename1
         result['image2_path'] = filename2
+        result['comparison_method'] = 'upload' if image2 else 'template_matching'
         
+        if compare_url:
+            result['source_url'] = compare_url
+        
+        print(f"✅ Hoàn thành! Độ tương đồng: {result['similarity_score']}%")
         return result
         
     except HTTPException:
         raise
     except Exception as e:
+        print(f"❌ Lỗi server: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Lỗi server: {str(e)}")
+
+def compare_images_ssim(image1_path: str, image2_path: str):
+    return enhanced_compare_images(image1_path, image2_path)
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

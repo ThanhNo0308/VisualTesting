@@ -483,3 +483,136 @@
 .modal-body::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* ...existing styles... */
+
+/* ✅ THÊM STYLES CHO CHẾĐỘ SO SÁNH */
+.compare-mode-section {
+  margin-bottom: 30px;
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border: 2px dashed #dee2e6;
+}
+
+.compare-mode-section h3 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 20px;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.mode-btn {
+  padding: 15px 25px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.mode-btn:hover {
+  border-color: #007bff;
+  background: #f8f9fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+}
+
+.mode-btn.active {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+}
+
+.mode-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.description {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 15px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.url-input-box {
+  border: 2px dashed #007bff !important;
+  background: #f8f9ff !important;
+}
+
+.url-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  margin-bottom: 15px;
+  transition: border-color 0.3s;
+}
+
+.url-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.template-info {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  border: 1px solid #e9ecef;
+}
+
+.template-info h4 {
+  margin: 0 0 10px 0;
+  color: #007bff;
+  font-size: 14px;
+}
+
+.template-info ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #666;
+}
+
+.template-info li {
+  margin-bottom: 5px;
+  line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+  .mode-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .mode-btn {
+    width: 100%;
+    max-width: 300px;
+    min-width: auto;
+  }
+  
+  .upload-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .compare-mode-section h3 {
+    font-size: 18px;
+  }
+}
