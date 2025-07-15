@@ -40,7 +40,7 @@ def resize_images_to_same_size(img1, img2):
 def enhanced_compare_images(image1_path: str, image2_path: str):
     """So sánh 2 ảnh với độ chính xác cao - Độ nhạy cố định cao nhất"""
     try:
-        # CỐ ĐỊNH SSIM THRESHOLD = 1.0 (NHẠY NHẤT)
+        # CỐ ĐỊNH SSIM THRESHOLD = 1.0 
         ssim_threshold = 1.0
         
         # Đọc ảnh
@@ -50,7 +50,7 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         if img1 is None or img2 is None:
             return None, "Không thể đọc một hoặc cả hai ảnh"
         
-        print(f"🎯 SSIM threshold: {ssim_threshold} (cố định - độ nhạy cao nhất)")
+        print(f" SSIM threshold: {ssim_threshold} (cố định - độ nhạy cao nhất)")
         
         # Resize về cùng kích thước
         img1_resized, img2_resized = resize_images_to_same_size(img1, img2)
@@ -60,9 +60,9 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         gray2 = cv2.cvtColor(img2_resized, cv2.COLOR_BGR2GRAY)
         similarity_score, ssim_diff = ssim(gray1, gray2, full=True)
         
-        # ✅ SỬ DỤNG SSIM THRESHOLD CỐ ĐỊNH = 1.0
+        #  SỬ DỤNG SSIM THRESHOLD = 1.0
         ssim_threshold_val = int((1 - ssim_threshold) * 255)  # = 0
-        print(f"🔧 Using fixed SSIM threshold value: {ssim_threshold_val}")
+        print(f" Using fixed SSIM threshold value: {ssim_threshold_val}")
         
         # So sánh màu sắc
         color_diff = np.sqrt(np.sum((img1_resized.astype(float) - img2_resized.astype(float)) ** 2, axis=2))
