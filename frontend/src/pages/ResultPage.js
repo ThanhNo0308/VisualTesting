@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { imageService } from '../services/api';
 import '../assets/styles/HomePage.css';
 import '../assets/styles/ResultPage.css';
-
 
 const ComparisonResult = ({ result }) => {
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -44,6 +43,21 @@ const ComparisonResult = ({ result }) => {
   return (
     <div className="result-container">
       <h2 className="result-title">📊 Kết quả so sánh chi tiết</h2>
+
+      {/* ✅ HIỂN THỊ SETTINGS CỐ ĐỊNH */}
+      {result.settings && (
+        <div className="settings-used">
+          <h3>⚙️ Cấu hình đã sử dụng:</h3>
+          <div className="settings-info">
+            <span className="setting-tag">
+              🎯 Độ nhạy: {result.settings.ssim_threshold} (Cao nhất)
+            </span>
+            <span className="setting-tag">
+              ⚡ Mode: Cố định
+            </span>
+          </div>
+        </div>
+      )}
       
       <div className={`similarity-score ${getScoreClass(result.similarity_score)}`}>
         <div className="score-value">

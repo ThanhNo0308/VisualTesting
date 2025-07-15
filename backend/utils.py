@@ -10,11 +10,15 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-# ✅ CONSTANTS
+# CONSTANTS
 BASE_DIR = Path(__file__).parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 RESULT_FOLDER = BASE_DIR / "results"
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
+
+# Tạo thư mục nếu chưa có
+UPLOAD_FOLDER.mkdir(exist_ok=True)
+RESULT_FOLDER.mkdir(exist_ok=True)
 
 def allowed_file(filename: str) -> bool:
     """Kiểm tra file có hợp lệ không"""
@@ -34,8 +38,11 @@ def resize_images_to_same_size(img1, img2):
     return img1_resized, img2_resized
 
 def enhanced_compare_images(image1_path: str, image2_path: str):
-    """So sánh 2 ảnh với độ chính xác cao"""
+    """So sánh 2 ảnh với độ chính xác cao - Độ nhạy cố định cao nhất"""
     try:
+        # CỐ ĐỊNH SSIM THRESHOLD = 1.0 (NHẠY NHẤT)
+        ssim_threshold = 1.0
+        
         # Đọc ảnh
         img1 = cv2.imread(image1_path)
         img2 = cv2.imread(image2_path)
@@ -43,13 +50,19 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         if img1 is None or img2 is None:
             return None, "Không thể đọc một hoặc cả hai ảnh"
         
+        print(f"🎯 SSIM threshold: {ssim_threshold} (cố định - độ nhạy cao nhất)")
+        
         # Resize về cùng kích thước
         img1_resized, img2_resized = resize_images_to_same_size(img1, img2)
         
-        # SSIM trên ảnh xám
+        # TÍNH SSIM
         gray1 = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(img2_resized, cv2.COLOR_BGR2GRAY)
         similarity_score, ssim_diff = ssim(gray1, gray2, full=True)
+        
+        # ✅ SỬ DỤNG SSIM THRESHOLD CỐ ĐỊNH = 1.0
+        ssim_threshold_val = int((1 - ssim_threshold) * 255)  # = 0
+        print(f"🔧 Using fixed SSIM threshold value: {ssim_threshold_val}")
         
         # So sánh màu sắc
         color_diff = np.sqrt(np.sum((img1_resized.astype(float) - img2_resized.astype(float)) ** 2, axis=2))
@@ -63,9 +76,9 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
         diff_r = cv2.absdiff(r1, r2)
         channel_diff = np.maximum(np.maximum(diff_b, diff_g), diff_r)
         
-        # Threshold động
+        # THRESHOLD CỐ ĐỊNH CHO ĐỘ NHẠY CAO NHẤT
         ssim_diff_normalized = ((1 - ssim_diff) * 255).astype(np.uint8)
-        _, ssim_thresh = cv2.threshold(ssim_diff_normalized, 30, 255, cv2.THRESH_BINARY)
+        _, ssim_thresh = cv2.threshold(ssim_diff_normalized, ssim_threshold_val, 255, cv2.THRESH_BINARY)
         
         color_diff_normalized = np.clip(color_diff * 2, 0, 255).astype(np.uint8)
         _, color_thresh = cv2.threshold(color_diff_normalized, 20, 255, cv2.THRESH_BINARY)
@@ -142,6 +155,10 @@ def enhanced_compare_images(image1_path: str, image2_path: str):
                 'total_pixels': int(img1_resized.shape[0] * img1_resized.shape[1]),
                 'different_pixels': int(np.sum(combined_mask > 0)),
                 'difference_percentage': round((np.sum(combined_mask > 0) / (img1_resized.shape[0] * img1_resized.shape[1])) * 100, 3)
+            },
+            'settings': {
+                'ssim_threshold': ssim_threshold,
+                'mode': 'fixed_high_sensitivity'
             },
             'status': 'success'
         }, None

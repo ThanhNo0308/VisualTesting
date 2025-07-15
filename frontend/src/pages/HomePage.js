@@ -14,9 +14,7 @@ const HomePage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
-  
-  // ✅ THÊM STATE CHO CHẾ ĐỘ SO SÁNH
-  const [compareMode, setCompareMode] = useState('upload'); // 'upload' hoặc 'url'
+  const [compareMode, setCompareMode] = useState('upload');
 
   const handleImageChange = (imageFile, imageNumber) => {
     if (imageFile) {
@@ -37,7 +35,6 @@ const HomePage = () => {
   const handleCompareImages = async (e) => {
     e.preventDefault();
     
-    // ✅ KIỂM TRA THEO CHẾĐỘ
     if (!image1) {
       setError('Vui lòng upload ảnh đầu tiên');
       return;
@@ -61,10 +58,8 @@ const HomePage = () => {
       let result;
       
       if (compareMode === 'upload') {
-        // ✅ CHẾĐỘ CŨ: Upload 2 ảnh
         result = await imageService.compareImages(image1, image2);
       } else {
-        // ✅ CHẾĐỘ MỚI: Template matching với URL
         result = await imageService.compareWithUrl(image1, compareUrl.trim());
       }
       
@@ -80,7 +75,6 @@ const HomePage = () => {
     setError('');
   };
 
-  // ✅ ĐIỀU KIỆN VALIDATION THEO CHẾĐỘ
   const isValidToCompare = image1 && !isLoading && 
     (compareMode === 'upload' ? image2 : compareUrl.trim());
 
@@ -90,7 +84,7 @@ const HomePage = () => {
         <div className="image-upload-container">
           <h1 className="title">🔍 So sánh ảnh thông minh</h1>
           
-          {/* ✅ THÊM CHỌN CHẾĐỘ SO SÁNH */}
+          {/* Phần chọn chế độ so sánh */}
           <div className="compare-mode-section">
             <h3>🎯 Chọn phương thức so sánh:</h3>
             <div className="mode-buttons">
@@ -113,8 +107,8 @@ const HomePage = () => {
             </div>
           </div>
           
+          {/* Form upload */}
           <form onSubmit={handleCompareImages} className="upload-form">
-            {/* ✅ ẢNH ĐẦU TIÊN - LUÔN CÓ */}
             <div className="upload-section">
               <div className="upload-box">
                 <h3>
@@ -140,9 +134,7 @@ const HomePage = () => {
                 )}
               </div>
               
-              {/* ✅ HIỂN THỊ THEO CHẾĐỘ */}
               {compareMode === 'upload' ? (
-                // CHẾĐỘ UPLOAD 2 ẢNH
                 <div className="upload-box">
                   <h3>🔍 Ảnh so sánh</h3>
                   <p className="description">Upload ảnh thứ hai để so sánh với ảnh gốc</p>
@@ -160,7 +152,6 @@ const HomePage = () => {
                   )}
                 </div>
               ) : (
-                // CHẾĐỘ TEMPLATE MATCHING
                 <div className="upload-box url-input-box">
                   <h3>🌐 URL trang web</h3>
                   <p className="description">
@@ -203,9 +194,10 @@ const HomePage = () => {
         
         {isLoading && (
           <LoadingSpinner 
-            message={compareMode === 'upload' 
-              ? "Đang so sánh ảnh, vui lòng đợi..." 
-              : "Đang chụp trang web và tìm banner..."
+            message={
+              compareMode === 'upload' 
+                ? "Đang so sánh ảnh, vui lòng đợi..." 
+                : "Đang chụp trang web và tìm banner..."
             } 
           />
         )}

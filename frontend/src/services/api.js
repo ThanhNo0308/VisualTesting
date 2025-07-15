@@ -4,11 +4,10 @@ const API_BASE_URL = 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // Tăng timeout cho template matching
+  timeout: 60000,
 });
 
 export const imageService = {
-  // ✅ GIỮ NGUYÊN FUNCTION CŨ
   compareImages: async (image1, image2) => {
     const formData = new FormData();
     formData.append('image1', image1);
@@ -26,11 +25,10 @@ export const imageService = {
     }
   },
 
-  // ✅ THÊM FUNCTION MỚI CHO TEMPLATE MATCHING
   compareWithUrl: async (templateImage, url) => {
     const formData = new FormData();
-    formData.append('image1', templateImage);  // Template
-    formData.append('compare_url', url);       // URL instead of image2
+    formData.append('image1', templateImage);
+    formData.append('compare_url', url);
 
     try {
       const response = await api.post('/upload', formData, {

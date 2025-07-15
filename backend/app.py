@@ -42,12 +42,13 @@ async def compare_images(
     sensitivity: str = Form("high")
 ):
     """
-    So sánh ảnh - 2 chế độ:
+    So sánh ảnh - 2 chế độ với độ nhạy cố định cao:
     1. Upload 2 ảnh: image1 + image2
     2. Template matching: image1 + compare_url
+    * Độ nhạy cố định ở mức cao nhất (SSIM = 1.0)
     """
     try:
-        # ✅ VALIDATION
+        # ✅ VALIDATION CŨ
         if not image2 and not compare_url:
             raise HTTPException(status_code=400, detail="Cần có ảnh thứ 2 hoặc URL")
         
@@ -66,6 +67,7 @@ async def compare_images(
             buffer.write(content)
         
         print(f"💾 Đã lưu ảnh 1: {filename1}")
+        print(f"🎯 Mode: Fixed High Sensitivity (SSIM = 1.0)")
         
         # ✅ XỬ LÝ ẢNH 2 HOẶC URL
         if image2:
@@ -95,9 +97,12 @@ async def compare_images(
             
             print(f"🎯 Template matching thành công: {filename2}")
         
-        # ✅ SO SÁNH ẢNH
-        print("🔄 Bắt đầu so sánh...")
-        result, error = enhanced_compare_images(str(filepath1), str(UPLOAD_FOLDER / filename2))
+        # ✅ SO SÁNH ẢNH VỚI ĐỘ NHẠY CỐ ĐỊNH
+        print("🔄 Bắt đầu so sánh với độ nhạy cố định cao...")
+        result, error = enhanced_compare_images(
+            str(filepath1), 
+            str(UPLOAD_FOLDER / filename2)
+        )
         
         if error:
             raise HTTPException(status_code=500, detail=error)
@@ -113,6 +118,7 @@ async def compare_images(
             result['source_url'] = compare_url
         
         print(f"✅ Hoàn thành! Độ tương đồng: {result['similarity_score']}%")
+        
         return result
         
     except HTTPException:
