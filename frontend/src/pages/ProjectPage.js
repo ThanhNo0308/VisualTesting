@@ -232,19 +232,19 @@ const ProjectPage = () => {
                     className="action-btn detail-btn"
                     onClick={() => alert(`Chi tiết project: ${project.name}`)}
                   >
-                    📊 Xem chi tiết
+                   Thống kê
                   </button>
                   <button 
-                    className="action-btn compare-btn"
+                    className="action-btn compare-btn" 
                     onClick={() => handleCompareClick(project)}
                   >
-                    🔄 So sánh
+                    So sánh
                   </button>
                   <button 
                     className="action-btn delete-btn"
                     onClick={() => handleDeleteProject(project.id)}
                   >
-                    🗑️ Xóa
+                     Xóa
                   </button>
                 </div>
               </div>

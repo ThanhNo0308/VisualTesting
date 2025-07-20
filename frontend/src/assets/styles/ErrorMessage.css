@@ -3,30 +3,38 @@
 }
 
 .error-content {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 15px;
-  border-radius: 5px;
-  border: 1px solid #f5c6cb;
+  background: rgba(244, 67, 54, 0.1);
+  color: #F44336;
+  padding: 20px;
+  border-radius: 15px;
+  border: 2px solid rgba(244, 67, 54, 0.2);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(244, 67, 54, 0.1);
 }
 
 .error-text {
   flex: 1;
+  font-weight: 500;
 }
 
 .error-close {
-  background: none;
+  background: #F44336;
   border: none;
-  color: #721c24;
-  font-size: 18px;
+  color: white;
+  font-size: 16px;
   cursor: pointer;
-  padding: 0;
-  margin-left: 10px;
+  padding: 8px 12px;
+  margin-left: 15px;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  transition: all 0.3s ease;
 }
 
 .error-close:hover {
-  color: #000;
+  background: #D32F2F;
+  transform: scale(1.1);
 }
