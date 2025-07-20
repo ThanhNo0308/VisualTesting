@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { authService } from '../services/api';
 import ErrorMessage from '../components/ErrorMessage';
 import LoadingSpinner from '../components/LoadingSpinner';
+import iconImage from '../assets/images/icon.png';
 import '../assets/styles/LoginPage.css';
 
-const AuthPage = ({ onLogin }) => {
+const LoginPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,12 +27,12 @@ const AuthPage = ({ onLogin }) => {
     setError('');
     
     if (!formData.email || !formData.password) {
-      setError('Vui lòng nhập đầy đủ thông tin');
+      setError('Please fill in all required fields');
       return;
     }
 
     if (!isLogin && !formData.name) {
-      setError('Vui lòng nhập tên');
+      setError('Please enter your name');
       return;
     }
 
@@ -44,24 +45,22 @@ const AuthPage = ({ onLogin }) => {
           password: formData.password
         });
         
-        // Lưu thông tin user vào localStorage
         localStorage.setItem('user', JSON.stringify(response.user));
         onLogin(response.user);
       } else {
-        const response = await authService.register({
+        await authService.register({
           name: formData.name,
           email: formData.email,
           password: formData.password
         });
         
-        // Tự động chuyển sang đăng nhập
         setIsLogin(true);
         setFormData({ name: '', email: '', password: '' });
         setError('');
-        alert('Đăng ký thành công! Vui lòng đăng nhập.');
+        alert('Registration successful! Please sign in.');
       }
     } catch (err) {
-      setError(err.message || 'Có lỗi xảy ra');
+      setError(err.message || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -77,20 +76,21 @@ const AuthPage = ({ onLogin }) => {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-header">
-          <h1>🔍 Visual Testing</h1>
-          <h2>{isLogin ? '👤 Đăng nhập' : '📝 Đăng ký'}</h2>
+          <img src={iconImage} alt="Visual Testing" className="auth-logo" />
+          <h1>Visual Testing</h1>
+          <p>{isLogin ? 'Sign in to your account' : 'Create your account'}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           {!isLogin && (
             <div className="form-group">
-              <label>Tên *</label>
+              <label>Name *</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                placeholder="Nhập tên của bạn"
+                placeholder="Enter your name"
                 required={!isLogin}
               />
             </div>
@@ -103,34 +103,34 @@ const AuthPage = ({ onLogin }) => {
               name="email"
               value={formData.email}
               onChange={handleInputChange}
-              placeholder="Nhập email"
+              placeholder="Enter your email"
               required
             />
           </div>
 
           <div className="form-group">
-            <label>Mật khẩu *</label>
+            <label>Password *</label>
             <input
               type="password"
               name="password"
               value={formData.password}
               onChange={handleInputChange}
-              placeholder="Nhập mật khẩu"
+              placeholder="Enter your password"
               required
             />
           </div>
 
           <button type="submit" className="auth-btn" disabled={isLoading}>
-            {isLoading ? '⏳ Đang xử lý...' : 
-             isLogin ? '🔐 Đăng nhập' : '📝 Đăng ký'}
+            {isLoading ? 'Processing...' : 
+             isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            {isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}
+            {isLogin ? 'Don\'t have an account?' : 'Already have an account?'}
             <button type="button" className="toggle-btn" onClick={toggleMode}>
-              {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
+              {isLogin ? 'Sign up' : 'Sign in'}
             </button>
           </p>
         </div>
@@ -140,10 +140,10 @@ const AuthPage = ({ onLogin }) => {
           onClose={() => setError('')}
         />
 
-        {isLoading && <LoadingSpinner message="Đang xử lý..." />}
+        {isLoading && <LoadingSpinner message="Processing..." />}
       </div>
     </div>
   );
 };
 
-export default AuthPage;
+export default LoginPage;
