@@ -88,6 +88,8 @@ class Comparison(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)  
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(255), nullable=False)  
+    status = Column(String(20), default="pending")
     
     # Thông tin ảnh
     image1_url = Column(String(500), nullable=False)  
@@ -102,6 +104,7 @@ class Comparison(Base):
     target_url = Column(String(500))  
     
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     project = relationship("Project", back_populates="comparisons")

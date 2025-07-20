@@ -5,6 +5,7 @@ import cloudinary.uploader
 import tempfile
 import os
 
+from datetime import datetime
 from models.database import get_db
 from models.models import Comparison, User
 from utils import allowed_file, enhanced_compare_images, capture_and_find_banner, UPLOAD_FOLDER
@@ -33,6 +34,7 @@ async def compare_images(
     image1: UploadFile = File(...),
     image2: Optional[UploadFile] = File(None),
     compare_url: Optional[str] = Form(None),
+    title: str = Form(...),
     project_id: Optional[int] = Form(None),
     user_id: int = Form(...),  
     db: Session = Depends(get_db)
@@ -42,6 +44,9 @@ async def compare_images(
     
     try:
         # Validation  
+        if not title.strip():
+            raise HTTPException(400, "Tiêu đề không được trống")
+        
         if not image2 and not compare_url:
             raise HTTPException(400, "Cần có ảnh thứ 2 hoặc URL")
         
@@ -158,11 +163,16 @@ async def compare_images(
             os.remove(result_path)
         if os.path.exists(heatmap_path):
             os.remove(heatmap_path)
+
+        auto_status = "pass" if result['similarity_score'] >= 95 else \
+                     "fail" if result['similarity_score'] < 70 else "pending"
         
         # Lưu database  
         comparison = Comparison(
             project_id=project_id,
             user_id=user_id,  
+            title=title.strip(),  
+            status=auto_status,
             image1_url=image1_url,
             image2_url=image2_url,
             result_image_url=result_image_url,
@@ -180,6 +190,8 @@ async def compare_images(
         # Response  
         result.update({
             'comparison_id': comparison.id,
+            'title': comparison.title,  
+            'status': comparison.status,
             'user_id': user_id,
             'user_name': user.name,  
             'image1_url': image1_url,
@@ -206,6 +218,7 @@ async def compare_images(
         for temp_file in temp_files:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
+
 
 @compare_router.get("/users/{user_id}/comparisons")
 async def get_user_comparisons(user_id: int, db: Session = Depends(get_db)):
@@ -261,3 +274,76 @@ async def delete_comparison(comparison_id: int, user_id: int, db: Session = Depe
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Lỗi xóa: {str(e)}")
+    
+@compare_router.patch("/comparisons/{comparison_id}/status")
+async def update_comparison_status(
+    comparison_id: int,
+    status: str = Form(...),
+    user_id: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Cập nhật trạng thái comparison"""
+    try:
+        # Validate status
+        valid_statuses = ["pass", "fail", "retest", "blocked", "pending"]
+        if status not in valid_statuses:
+            raise HTTPException(400, f"Trạng thái không hợp lệ. Chỉ chấp nhận: {', '.join(valid_statuses)}")
+        
+        comparison = db.query(Comparison).filter(Comparison.id == comparison_id).first()
+        
+        if not comparison:
+            raise HTTPException(404, "Comparison không tồn tại")
+        
+        if comparison.user_id != user_id:
+            raise HTTPException(403, "Chỉ người tạo mới có thể cập nhật")
+        
+        comparison.status = status
+        comparison.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(comparison)
+        
+        return {
+            "message": "Cập nhật trạng thái thành công",
+            "comparison_id": comparison.id,
+            "new_status": comparison.status,
+            "updated_at": comparison.updated_at
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Lỗi cập nhật: {str(e)}")
+    
+@compare_router.get("/projects/{project_id}/comparisons")
+async def get_project_comparisons(project_id: int, db: Session = Depends(get_db)):
+    """Lấy lịch sử so sánh của project"""
+    try:
+        comparisons = db.query(Comparison).filter(
+            Comparison.project_id == project_id
+        ).order_by(Comparison.created_at.desc()).all()
+        
+        return {
+            "comparisons": [
+                {
+                    "id": c.id,
+                    "comparison_id": c.id,
+                    "title": c.title,  
+                    "status": c.status,  
+                    "image1_url": c.image1_url,
+                    "image2_url": c.image2_url,
+                    "result_image_url": c.result_image_url,
+                    "heatmap_image_url": c.heatmap_image_url,
+                    "similarity_score": float(c.similarity_score),
+                    "differences_count": c.differences_count,
+                    "comparison_method": c.comparison_method,
+                    "created_at": c.created_at,
+                    "updated_at": c.updated_at
+                }
+                for c in comparisons
+            ]
+        }
+        
+    except Exception as e:
+        raise HTTPException(500, f"Lỗi lấy lịch sử: {str(e)}")

@@ -1,12 +1,53 @@
 import React, { useState } from 'react';
-import { imageService } from '../services/api';
+import { imageService, authService } from '../services/api';
 import ImageModal from '../components/ImageModal';
 import '../assets/styles/ResultPage.css';
 
-const ResultPage = ({ result, onBack }) => {
+const ResultPage = ({ result, onBack, onStatusUpdate }) => {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [modalImage, setModalImage] = useState(null);
   const [modalTitle, setModalTitle] = useState('');
+  const [currentStatus, setCurrentStatus] = useState(result.status || 'pending');  
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const handleStatusUpdate = async (newStatus) => {
+    try {
+      setIsUpdatingStatus(true);
+
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser) {
+        alert('Vui lòng đăng nhập');
+        return;
+      }
+
+      const comparisonId = result.comparison_id || result.id;
+
+      if (!comparisonId) {
+        alert('Không tìm thấy comparison ID');
+        console.error('Missing comparison_id in result:', result);
+        return;
+      }
+
+      await imageService.updateComparisonStatus(
+        comparisonId,
+        newStatus,
+        currentUser.id
+      );
+
+      setCurrentStatus(newStatus);
+
+      if (onStatusUpdate) {
+        onStatusUpdate(comparisonId, newStatus);
+      }
+
+      alert(`Đã cập nhật trạng thái thành: ${newStatus.toUpperCase()}`);
+
+    } catch (err) {
+      alert(`Lỗi cập nhật trạng thái: ${err.message}`);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const getScoreClass = (score) => {
     if (score >= 90) return 'excellent';
@@ -62,7 +103,23 @@ const ResultPage = ({ result, onBack }) => {
             ← Quay lại
           </button>
         </div>
-        
+
+        <div className="status-controls">
+          <h3>🏷️ Đánh giá kết quả:</h3>
+          <div className="status-buttons">
+            {['pass', 'fail', 'retest', 'blocked', 'pending'].map((status) => (
+              <button
+                key={status}
+                className={`status-btn status-${status} ${currentStatus === status ? 'active' : ''}`}
+                onClick={() => handleStatusUpdate(status)}
+                disabled={isUpdatingStatus || currentStatus === status}
+              >
+                {getStatusIcon(status)} {status.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className={`similarity-score ${getScoreClass(result.similarity_score)}`}>
           <div className="score-value">
             Độ tương đồng: {result.similarity_score}%
@@ -71,7 +128,7 @@ const ResultPage = ({ result, onBack }) => {
             {getScoreText(result.similarity_score)}
           </div>
         </div>
-        
+
         <div className="analysis-details">
           <div className="analysis-item">
             <strong>Tổng số vùng khác biệt:</strong> {result.differences_count}
@@ -107,10 +164,10 @@ const ResultPage = ({ result, onBack }) => {
             </div>
           </div>
         )}
-        
+
         {result.heatmap_image_url && (
           <div className="heatmap-toggle">
-            <button 
+            <button
               onClick={() => setShowHeatmap(!showHeatmap)}
               className="toggle-btn"
             >
@@ -133,7 +190,7 @@ const ResultPage = ({ result, onBack }) => {
               title="Click để xem phóng to"
             />
           </div>
-          
+
           <div className="result-item">
             <h3>Ảnh so sánh</h3>
             <img
@@ -147,7 +204,7 @@ const ResultPage = ({ result, onBack }) => {
               title="Click để xem phóng to"
             />
           </div>
-          
+
           <div className="result-item">
             <h3>
               {showHeatmap ? 'Heatmap khác biệt' : 'Kết quả (Highlight khác biệt)'}
@@ -200,6 +257,17 @@ const ResultPage = ({ result, onBack }) => {
       </div>
     </div>
   );
+};
+
+const getStatusIcon = (status) => {
+  switch (status) {
+    case 'pass': return '✅';
+    case 'fail': return '❌';
+    case 'retest': return '🔄';
+    case 'blocked': return '🚫';
+    case 'pending': return '⏳';
+    default: return '❓';
+  }
 };
 
 export default ResultPage;
