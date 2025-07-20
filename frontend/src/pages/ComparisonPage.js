@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import ResultPage from '../pages/ResultPage';
-import { imageService } from '../services/api';
-import '../assets/styles/HomePage.css';
+import ResultPage from './ResultPage';
+import { imageService, authService } from '../services/api';
+import '../assets/styles/Comparison.css';
 
-const HomePage = () => {
+const ComparisonPage = ({ project = null, onBack = null }) => {
   const [image1, setImage1] = useState(null);
   const [image2, setImage2] = useState(null);
   const [compareUrl, setCompareUrl] = useState('');
@@ -50,6 +50,12 @@ const HomePage = () => {
       return;
     }
 
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser) {
+      setError('Vui lòng đăng nhập để so sánh');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     setResult(null);
@@ -58,9 +64,25 @@ const HomePage = () => {
       let result;
       
       if (compareMode === 'upload') {
-        result = await imageService.compareImages(image1, image2);
+        // ✅ TRUYỀN project_id
+        result = await imageService.compareImages(
+          image1, 
+          image2, 
+          currentUser.id, 
+          project?.id || null 
+        );
       } else {
-        result = await imageService.compareWithUrl(image1, compareUrl.trim());
+        // ✅ TRUYỀN project_id
+        result = await imageService.compareWithUrl(
+          image1, 
+          compareUrl.trim(), 
+          currentUser.id,
+          project?.id || null  
+        );
+      }
+      
+      if (project) {
+        result.project = project;
       }
       
       setResult(result);
@@ -75,12 +97,36 @@ const HomePage = () => {
     setError('');
   };
 
+  const handleBackFromResult = () => {
+    setResult(null);
+  };
+
   const isValidToCompare = image1 && !isLoading && 
     (compareMode === 'upload' ? image2 : compareUrl.trim());
+
+  // ✅ HIỂN THỊ RESULT PAGE
+  if (result) {
+    return <ResultPage result={result} onBack={handleBackFromResult} />;
+  }
 
   return (
     <div className="home-page">
       <div className="container">
+        {/* ✅ HIỂN THỊ THÔNG TIN PROJECT */}
+        {project && (
+          <div className="project-context">
+            <div className="project-info">
+              <h2>📁 Project: {project.name}</h2>
+              <p>{project.description || 'Không có mô tả'}</p>
+            </div>
+            {onBack && (
+              <button onClick={onBack} className="back-btn">
+                ← Quay lại Projects
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="image-upload-container">
           <h1 className="title">🔍 So sánh ảnh thông minh</h1>
           
@@ -206,11 +252,9 @@ const HomePage = () => {
           message={error}
           onClose={handleCloseError}
         />
-        
-        {result && <ResultPage result={result} />}
       </div>
     </div>
   );
 };
 
-export default HomePage;
+export default ComparisonPage;
