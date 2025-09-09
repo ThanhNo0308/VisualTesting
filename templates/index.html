@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visual Testing</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Hệ thống kiểm thử giao diện tự động</h1>
+    <section class="card">
+      <h2>So sánh ảnh</h2>
+      <form id="formDirect">
+        <div class="upload-section">
+          <div class="upload-box">
+            <label>Ảnh gốc</label>
+            <input type="file" name="original" accept="image/*" required onchange="previewImage(this, 'preview1')" />
+            <div id="preview1" class="image-preview"></div>
+          </div>
+          <div class="upload-box">
+            <label>Ảnh biến thể</label>
+            <input type="file" name="variant" accept="image/*" required onchange="previewImage(this, 'preview2')" />
+            <div id="preview2" class="image-preview"></div>
+          </div>
+        </div>
+        <button type="submit" class="btn-compare">So sánh ảnh</button>
+      </form>
+      <div id="resultDirect" class="result-section"></div>
+    </section>
+  </div>
+  <script>
+    function previewImage(input, previewId) {
+      const preview = document.getElementById(previewId);
+      const file = input.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.innerHTML = `<img src="${e.target.result}" alt="Preview" />`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        preview.innerHTML = '';
+      }
+    }
+    function displayResult(label) {
+      const statusMap = {
+        'similar': { text: 'Không vi phạm', class: 'status-safe', color: '#22c55e' },
+        'almost': { text: 'Cần kiểm chứng', class: 'status-warning', color: '#f59e0b' },
+        'different': { text: 'Vi phạm', class: 'status-danger', color: '#ef4444' }
+      };
+      const status = statusMap[label] || statusMap['different'];
+      return `
+        <div class="result-card ${status.class}">
+          <div class="status-badge" style="background-color: ${status.color};">
+            ${status.text}
+          </div>
+        </div>
+      `;
+    }
+    document.getElementById('formDirect').onsubmit = async (e) => {
+      e.preventDefault();
+      const resultDiv = document.getElementById('resultDirect');
+      resultDiv.innerHTML = '<div class="loading">Đang xử lý...</div>';
+      try {
+        const fd = new FormData(e.target);
+        const res = await fetch('/predict', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.error) {
+          resultDiv.innerHTML = `<div class="error">Lỗi: ${data.error}</div>`;
+        } else {
+          resultDiv.innerHTML = displayResult(data.label);
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `<div class="error">Lỗi kết nối: ${error.message}</div>`;
+      }
+    };
+  </script>
+</body>
+</html>
