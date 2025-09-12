@@ -1,7 +1,6 @@
 import os, tempfile, json, joblib, re
 from flask import Flask, request, jsonify, render_template
 import numpy as np, cv2, pytesseract
-from difflib import SequenceMatcher
 from skimage.metrics import structural_similarity as ssim
 
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -50,7 +49,7 @@ class Extractor:
             g1, g2 = self.ensure_same_size(g1, g2)
             if g1 is None or g2 is None: return 0.5
             val = ssim(g1, g2, data_range=255) 
-            return float(np.clip((val + 1.0) / 2.0, 0.0, 1.0))
+            return float(np.clip(val, 0.0, 1.0))
         except: return 0.5
 
     def f_ocr(self, a, b):
@@ -136,7 +135,28 @@ def save_upload(file_storage):
 def predict_pair(original_path, variant_path):
     f = extractor.features(original_path, variant_path)
     y_int = int(model.predict([f])[0])
-    return {"label": inv_map[y_int]}
+    
+    # Get confidence scores if available
+    try:
+        proba = model.predict_proba([f])[0]
+        confidence = float(max(proba))
+        proba_dict = {inv_map[i]: float(proba[i]) for i in range(len(proba))}
+    except:
+        confidence = 1.0
+        proba_dict = {}
+    
+    return {
+        "label": inv_map[y_int],
+        "confidence": confidence,
+        "probabilities": proba_dict,
+        "features": {
+            "SSIM": f[0],
+            "OCR": f[1], 
+            "Histogram": f[2],
+            "ORB": f[3],
+            "Layout": f[4]
+        }
+    }
 
 @app.route("/", methods=["GET"])
 def index():
@@ -150,15 +170,26 @@ def static_files(filename):
 def predict():
     if "original" not in request.files or "variant" not in request.files:
         return jsonify({"error":"Missing files"}), 400
-    op = save_upload(request.files["original"])
-    vp = save_upload(request.files["variant"])
+    
     try:
+        op = save_upload(request.files["original"])
+        vp = save_upload(request.files["variant"])
         res = predict_pair(op, vp)
         return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     finally:
         for p in (op, vp):
             try: os.remove(p)
             except: pass
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "healthy",
+        "model": meta.get("model", "Unknown"),
+        "version": meta.get("version", "Unknown")
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
