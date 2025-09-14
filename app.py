@@ -2,22 +2,26 @@ import os, tempfile, json, joblib, re
 from flask import Flask, request, jsonify, render_template
 import numpy as np, cv2, pytesseract
 from skimage.metrics import structural_similarity as ssim
+from xgboost import XGBClassifier
 
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
 ART_DIR = os.path.join(PROJECT_DIR, "visualtesting", "artifacts")
-MODEL_PATH = os.path.join(ART_DIR, "model.pkl")
+MODEL_PKL = os.path.join(ART_DIR, "model.pkl")
+MODEL_JSON = os.path.join(ART_DIR, "model.json")
 META_PATH = os.path.join(ART_DIR, "metadata.json")
 
 pytesseract.pytesseract.tesseract_cmd = os.environ.get(
     "TESSERACT_CMD", r"D:\Apps\Tesseract-OCR\tesseract.exe"
 )
 
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
-if not os.path.exists(META_PATH):
-    raise FileNotFoundError(f"Metadata not found: {META_PATH}")
+if os.path.exists(MODEL_PKL):
+    model = joblib.load(MODEL_PKL)
+elif os.path.exists(MODEL_JSON):
+    model = XGBClassifier()
+    model.load_model(MODEL_JSON)
+else:
+    raise FileNotFoundError(f"Model not found: {MODEL_PKL} or {MODEL_JSON}")
 
-model = joblib.load(MODEL_PATH)
 meta = json.load(open(META_PATH, "r", encoding="utf-8"))
 label_map = meta["label_map"]
 inv_map = {v: k for k, v in label_map.items()}
@@ -136,7 +140,6 @@ def predict_pair(original_path, variant_path):
     f = extractor.features(original_path, variant_path)
     y_int = int(model.predict([f])[0])
     
-    # Get confidence scores if available
     try:
         proba = model.predict_proba([f])[0]
         confidence = float(max(proba))
