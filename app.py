@@ -1,8 +1,15 @@
-import os, tempfile, json, joblib, re
+import os, tempfile, json, joblib, re, base64, requests
 from flask import Flask, request, jsonify, render_template
 import numpy as np, cv2, pytesseract
 from skimage.metrics import structural_similarity as ssim
 from xgboost import XGBClassifier
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from urllib.parse import urljoin
+import time
 
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
 ART_DIR = os.path.join(PROJECT_DIR, "visualtesting", "artifacts")
@@ -161,19 +168,74 @@ def predict_pair(original_path, variant_path):
         }
     }
 
+def get_image_from_web(url, selector):
+    """Lấy ảnh từ web theo selector"""
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--window-size=1920,1080')
+    
+    driver = None
+    try:
+        driver = webdriver.Chrome(options=options)
+        driver.get(url)
+        time.sleep(3)
+        
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+        time.sleep(2)
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(1)
+        
+        element = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
+        driver.execute_script("""
+            arguments[0].style.display = 'block';
+            arguments[0].style.visibility = 'visible';
+            arguments[0].classList.remove('hidden');
+            arguments[0].scrollIntoView({block: 'center'});
+        """, element)
+        time.sleep(1)
+        
+        img_src = None
+        if element.tag_name.lower() == 'img':
+            img_src = element.get_attribute('src') or element.get_attribute('data-src')
+        else:
+            for img in element.find_elements(By.TAG_NAME, 'img'):
+                driver.execute_script("arguments[0].classList.remove('hidden');", img)
+                src = img.get_attribute('src') or img.get_attribute('data-src')
+                if src and not src.startswith('data:'):
+                    img_src = src
+                    break
+        
+        if not img_src or img_src.startswith('data:'):
+            raise Exception("Không tìm thấy URL ảnh hợp lệ")
+        
+        img_url = urljoin(url, img_src)
+        response = requests.get(img_url, headers={'Referer': url}, timeout=15)
+        response.raise_for_status()
+        
+        temp_path = tempfile.mktemp(suffix='.jpg')
+        with open(temp_path, 'wb') as f:
+            f.write(response.content)
+        
+        return temp_path
+        
+    except Exception as e:
+        raise Exception(f"Lỗi crawl: {str(e)}")
+    finally:
+        if driver:
+            driver.quit()
+
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
-
-@app.route("/static/<path:filename>")
-def static_files(filename):
-    return app.send_static_file(filename)
 
 @app.route("/predict", methods=["POST"])
 def predict():
     if "original" not in request.files or "variant" not in request.files:
         return jsonify({"error":"Missing files"}), 400
     
+    op = vp = None
     try:
         op = save_upload(request.files["original"])
         vp = save_upload(request.files["variant"])
@@ -183,7 +245,80 @@ def predict():
         return jsonify({"error": str(e)}), 500
     finally:
         for p in (op, vp):
-            try: os.remove(p)
+            if p:
+                try: os.remove(p)
+                except: pass
+
+@app.route("/crawl-all", methods=["POST"])
+def crawl_all():
+    """Crawl tất cả trang web trong danh sách"""
+    try:
+        websites = json.loads(request.headers.get('X-Websites', '[]'))
+    except:
+        return jsonify({"error": "Dữ liệu websites không hợp lệ"}), 400
+    
+    if "original" not in request.files:
+        return jsonify({"error": "Thiếu ảnh gốc"}), 400
+    
+    if not websites:
+        return jsonify({"error": "Không có trang web nào để test"}), 400
+    
+    op = None
+    results = []
+    
+    try:
+        op = save_upload(request.files["original"])
+        
+        for i, site in enumerate(websites):
+            url = site.get('url', '').strip()
+            selector = site.get('selector', '').strip()
+            branch = site.get('branch', f'Site {i+1}').strip()
+            
+            if not url or not selector:
+                results.append({
+                    "branch": branch,
+                    "error": "Thiếu URL hoặc selector",
+                    "status": "failed"
+                })
+                continue
+            
+            downloaded_path = None
+            try:
+                downloaded_path = get_image_from_web(url, selector)
+            
+                comparison = predict_pair(op, downloaded_path)
+                
+                with open(downloaded_path, 'rb') as f:
+                    img_b64 = base64.b64encode(f.read()).decode()
+                
+                results.append({
+                    "branch": branch,
+                    "url": url,
+                    "label": comparison["label"],
+                    "confidence": comparison["confidence"],
+                    "downloaded_image": f"data:image/jpeg;base64,{img_b64}",
+                    "status": "success"
+                })
+                
+            except Exception as e:
+                results.append({
+                    "branch": branch,
+                    "url": url,
+                    "error": str(e),
+                    "status": "failed"
+                })
+            finally:
+                if downloaded_path:
+                    try: os.remove(downloaded_path)
+                    except: pass
+        
+        return jsonify({"results": results})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if op:
+            try: os.remove(op)
             except: pass
 
 @app.route("/health", methods=["GET"])

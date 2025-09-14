@@ -1,80 +1,218 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Visual Testing</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
+
 <body>
   <div class="container">
     <h1>Hệ thống kiểm thử giao diện tự động</h1>
+
+    <!-- So sánh ảnh trực tiếp -->
     <section class="card">
-      <h2>So sánh ảnh</h2>
-      <form id="formDirect">
-        <div class="upload-section">
-          <div class="upload-box">
-            <label>Ảnh gốc</label>
-            <input type="file" name="original" accept="image/*" required onchange="previewImage(this, 'preview1')" />
-            <div id="preview1" class="image-preview"></div>
+      <h2>So sánh ảnh trực tiếp</h2>
+      <div id="directComparisons">
+        <div class="comparison-item">
+          <div class="upload-section">
+            <div class="upload-box">
+              <label>Ảnh gốc</label>
+              <input type="file" name="original" accept="image/*" required
+                onchange="previewImage(this, this.parentNode.querySelector('.image-preview'))" />
+              <div class="image-preview"></div>
+            </div>
+            <div class="upload-box">
+              <label>Ảnh biến thể</label>
+              <input type="file" name="variant" accept="image/*" required
+                onchange="previewImage(this, this.parentNode.querySelector('.image-preview'))" />
+              <div class="image-preview"></div>
+            </div>
           </div>
-          <div class="upload-box">
-            <label>Ảnh biến thể</label>
-            <input type="file" name="variant" accept="image/*" required onchange="previewImage(this, 'preview2')" />
-            <div id="preview2" class="image-preview"></div>
+          <div class="button-group">
+            <button onclick="compareImages(this)" class="btn-compare">So sánh</button>
+            <button onclick="removeComparison(this)" class="btnDel">Xóa</button>
+          </div>
+          <div class="result-section"></div>
+        </div>
+      </div>
+      <button onclick="addComparison()" class="btnAdd">+ Thêm so sánh</button>
+    </section>
+
+    <!-- Crawl web -->
+    <section class="card">
+      <h2>Kiểm thử web tự động (so sánh quảng cáo chi nhánh)</h2>
+
+      <!-- Ảnh gốc chung -->
+      <div class="shared-original">
+        <h3>Ảnh quảng cáo gốc (dùng chung cho tất cả test)</h3>
+        <div class="upload-box">
+          <input type="file" id="sharedOriginal" accept="image/*" required
+            onchange="previewImage(this, document.getElementById('sharedPreview'))" />
+          <div id="sharedPreview" class="image-preview"></div>
+        </div>
+      </div>
+
+      <!-- Danh sách test -->
+      <div id="crawlTests">
+        <div class="crawl-item">
+          <div class="crawl-inputs">
+            <div class="row">
+              <label>Tên chi nhánh:</label>
+              <input type="text" name="branch" placeholder="Chi nhánh A, Website B..." />
+            </div>
+            <div class="row">
+              <label>URL:</label>
+              <input type="url" name="url" placeholder="https://example.com" required />
+            </div>
+            <div class="row">
+              <label>CSS Selector:</label>
+              <input type="text" name="selector" placeholder=".banner, #ad, img[alt='logo']" required />
+            </div>
+          </div>
+          <div class="button-group">
+            <button onclick="removeCrawlTest(this)" class="btnDel">Xóa</button>
           </div>
         </div>
-        <button type="submit" class="btn-compare">So sánh ảnh</button>
-      </form>
-      <div id="resultDirect" class="result-section"></div>
+      </div>
+      <div class="control-buttons">
+        <button onclick="addCrawlTest()" class="btnAdd">+ Thêm trang web</button>
+        <button onclick="runAllTests()" class="btn-run-all">Chạy tất cả test</button>
+      </div>
+      <div id="allResults"></div>
     </section>
   </div>
+
   <script>
-    function previewImage(input, previewId) {
-      const preview = document.getElementById(previewId);
+    function previewImage(input, preview) {
       const file = input.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          preview.innerHTML = `<img src="${e.target.result}" alt="Preview" />`;
-        };
-        reader.readAsDataURL(file);
-      } else {
-        preview.innerHTML = '';
-      }
+      preview.innerHTML = file ? `<img src="${URL.createObjectURL(file)}" alt="Preview" />` : '';
     }
-    function displayResult(label) {
+
+    function displayResult(label, downloadedImg = null, branchName = '') {
       const statusMap = {
         'similar': { text: 'Không vi phạm', class: 'status-safe', color: '#22c55e' },
         'almost': { text: 'Cần kiểm chứng', class: 'status-warning', color: '#f59e0b' },
         'different': { text: 'Vi phạm', class: 'status-danger', color: '#ef4444' }
       };
       const status = statusMap[label] || statusMap['different'];
+
       return `
-        <div class="result-card ${status.class}">
-          <div class="status-badge" style="background-color: ${status.color};">
-            ${status.text}
-          </div>
-        </div>
-      `;
+            <div class="result-card ${status.class}">
+                ${branchName ? `<h4>${branchName}</h4>` : ''}
+                <div class="status-badge" style="background-color: ${status.color};">${status.text}</div>
+            </div>
+            ${downloadedImg ? `<div class="captured-preview"><h4>Ảnh đã tải từ web:</h4><img src="${downloadedImg}" alt="Downloaded" style="max-width: 300px; border-radius: 6px;" /></div>` : ''}
+        `;
     }
-    document.getElementById('formDirect').onsubmit = async (e) => {
-      e.preventDefault();
-      const resultDiv = document.getElementById('resultDirect');
+
+    async function compareImages(button) {
+      const item = button.closest('.comparison-item');
+      const files = [item.querySelector('input[name="original"]').files[0], item.querySelector('input[name="variant"]').files[0]];
+      const resultDiv = item.querySelector('.result-section');
+
+      if (!files[0] || !files[1]) {
+        resultDiv.innerHTML = '<div class="error">Vui lòng chọn đủ 2 ảnh</div>';
+        return;
+      }
+
       resultDiv.innerHTML = '<div class="loading">Đang xử lý...</div>';
+
       try {
-        const fd = new FormData(e.target);
+        const fd = new FormData();
+        fd.append('original', files[0]);
+        fd.append('variant', files[1]);
+
         const res = await fetch('/predict', { method: 'POST', body: fd });
         const data = await res.json();
-        if (data.error) {
-          resultDiv.innerHTML = `<div class="error">Lỗi: ${data.error}</div>`;
-        } else {
-          resultDiv.innerHTML = displayResult(data.label);
-        }
+
+        resultDiv.innerHTML = data.error ? `<div class="error">Lỗi: ${data.error}</div>` : displayResult(data.label);
       } catch (error) {
         resultDiv.innerHTML = `<div class="error">Lỗi kết nối: ${error.message}</div>`;
       }
-    };
+    }
+
+    async function runAllTests() {
+      const sharedOriginal = document.getElementById('sharedOriginal').files[0];
+      const resultDiv = document.getElementById('allResults');
+
+      if (!sharedOriginal) {
+        resultDiv.innerHTML = '<div class="error">Vui lòng chọn ảnh gốc trước</div>';
+        return;
+      }
+
+      const websites = Array.from(document.querySelectorAll('.crawl-item')).map(item => ({
+        branch: item.querySelector('input[name="branch"]').value.trim() || 'Không tên',
+        url: item.querySelector('input[name="url"]').value.trim(),
+        selector: item.querySelector('input[name="selector"]').value.trim()
+      })).filter(site => site.url && site.selector);
+
+      if (!websites.length) {
+        resultDiv.innerHTML = '<div class="error">Không có trang web nào để test</div>';
+        return;
+      }
+
+      resultDiv.innerHTML = `<div class="loading">Đang test ${websites.length} trang web...</div>`;
+
+      try {
+        const fd = new FormData();
+        fd.append('original', sharedOriginal);
+
+        const res = await fetch('/crawl-all', {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Websites': JSON.stringify(websites) }
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          resultDiv.innerHTML = `<div class="error">Lỗi: ${data.error}</div>`;
+          return;
+        }
+
+        let html = '<h3>Kết quả test tổng hợp:</h3>';
+        data.results.forEach(result => {
+          html += result.status === 'success'
+            ? displayResult(result.label, result.downloaded_image, result.branch)
+            : `<div class="result-card status-danger"><h4>${result.branch}</h4><div class="error">Lỗi: ${result.error}</div><small>URL: ${result.url || 'N/A'}</small></div>`;
+        });
+
+        resultDiv.innerHTML = html;
+
+      } catch (error) {
+        resultDiv.innerHTML = `<div class="error">Lỗi kết nối: ${error.message}</div>`;
+      }
+    }
+
+    function addComparison() {
+      const container = document.getElementById('directComparisons');
+      const newItem = container.querySelector('.comparison-item').cloneNode(true);
+      newItem.querySelectorAll('input').forEach(input => { input.value = ''; input.files = null; });
+      newItem.querySelectorAll('.image-preview').forEach(preview => preview.innerHTML = '');
+      newItem.querySelector('.result-section').innerHTML = '';
+      container.appendChild(newItem);
+    }
+
+    function removeComparison(button) {
+      const container = document.getElementById('directComparisons');
+      if (container.children.length > 1) button.closest('.comparison-item').remove();
+    }
+
+    function addCrawlTest() {
+      const container = document.getElementById('crawlTests');
+      const newItem = container.querySelector('.crawl-item').cloneNode(true);
+      newItem.querySelectorAll('input').forEach(input => input.value = '');
+      container.appendChild(newItem);
+    }
+
+    function removeCrawlTest(button) {
+      const container = document.getElementById('crawlTests');
+      if (container.children.length > 1) button.closest('.crawl-item').remove();
+    }
   </script>
 </body>
+
 </html>
