@@ -38,7 +38,7 @@
           <div class="result-section"></div>
         </div>
       </div>
-      <button onclick="addComparison()" class="btnAdd">+ Thêm so sánh</button>
+      <button onclick="addComparison()" class="btnAdd">+ Thêm</button>
     </section>
 
     <!-- Crawl web -->
@@ -82,10 +82,51 @@
         <button onclick="runAllTests()" class="btn-run-all">Chạy tất cả test</button>
       </div>
       <div id="allResults"></div>
+      <div id="resultModal" class="modal" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+          <span class="close" onclick="closeModal()">&times;</span>
+          <div id="modalBody"></div>
+        </div>
+      </div>
     </section>
   </div>
 
   <script>
+    function showModal(result) {
+      const modal = document.getElementById('resultModal');
+      const modalBody = document.getElementById('modalBody');
+
+      const statusMap = {
+        'similar': { text: 'Không vi phạm', color: '#22c55e' },
+        'almost': { text: 'Cần kiểm chứng', color: '#f59e0b' },
+        'different': { text: 'Vi phạm', color: '#ef4444' }
+      };
+      const status = statusMap[result.label] || statusMap['different'];
+
+      modalBody.innerHTML = `
+            <div class="modal-detail">
+                <h3>${result.branch}</h3>
+                <div class="status-badge" style="background-color: ${status.color};">
+                    ${status.text}
+                </div>
+                <p><strong>URL:</strong> ${result.url}</p>
+                
+                ${result.downloaded_image ? `
+                    <h4>Ảnh đã tải từ web:</h4>
+                    <img src="${result.downloaded_image}" alt="Downloaded Image" />
+                ` : ''}
+              
+            </div>
+        `;
+
+      modal.style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('resultModal').style.display = 'none';
+    }
+
+
     function previewImage(input, preview) {
       const file = input.files[0];
       preview.innerHTML = file ? `<img src="${URL.createObjectURL(file)}" alt="Preview" />` : '';
@@ -173,13 +214,79 @@
           return;
         }
 
-        let html = '<h3>Kết quả test tổng hợp:</h3>';
+        // Tính toán summary
+        const successful = data.results.filter(r => r.status === 'success');
+        const summary = {
+          safe: successful.filter(r => r.label === 'similar').length,
+          warning: successful.filter(r => r.label === 'almost').length,
+          danger: successful.filter(r => r.label === 'different').length,
+          failed: data.results.filter(r => r.status === 'failed').length
+        };
+
+        // Hiển thị kết quả dạng grid
+        let html = `
+                <h3>Kết quả test tổng hợp (${data.results.length} chi nhánh):</h3>
+                
+                <div class="results-summary">
+                    <div class="summary-item">
+                        <div class="summary-number safe">${summary.safe}</div>
+                        <div class="summary-label">Không vi phạm</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-number warning">${summary.warning}</div>
+                        <div class="summary-label">Cần kiểm chứng</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-number danger">${summary.danger}</div>
+                        <div class="summary-label">Vi phạm</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-number">${summary.failed}</div>
+                        <div class="summary-label">Lỗi crawl</div>
+                    </div>
+                </div>
+                
+                <div class="results-grid">
+            `;
+
         data.results.forEach(result => {
-          html += result.status === 'success'
-            ? displayResult(result.label, result.downloaded_image, result.branch)
-            : `<div class="result-card status-danger"><h4>${result.branch}</h4><div class="error">Lỗi: ${result.error}</div><small>URL: ${result.url || 'N/A'}</small></div>`;
+          if (result.status === 'success') {
+            const statusMap = {
+              'similar': { text: 'Không vi phạm', color: '#22c55e' },
+              'almost': { text: 'Cần kiểm chứng', color: '#f59e0b' },
+              'different': { text: 'Vi phạm', color: '#ef4444' }
+            };
+            const status = statusMap[result.label];
+
+            html += `
+                        <div class="result-item" onclick="showModal(${JSON.stringify(result).replace(/"/g, '&quot;')})">
+                            <h4>${result.branch}</h4>
+                            <div class="status-mini" style="background-color: ${status.color};">
+                                ${status.text}
+                            </div>
+                            ${result.downloaded_image ? `
+                                <img src="${result.downloaded_image}" alt="Preview" class="preview-img" />
+                            ` : ''}
+                            <div class="url-preview">${result.url}</div>
+                        </div>
+                    `;
+          } else {
+            html += `
+                        <div class="result-item">
+                            <h4>${result.branch}</h4>
+                            <div class="status-mini" style="background-color: #6b7280;">
+                                Lỗi crawl
+                            </div>
+                            <div class="error" style="margin: 8px 0; font-size: 12px;">
+                                ${result.error}
+                            </div>
+                            <div class="url-preview">${result.url || 'N/A'}</div>
+                        </div>
+                    `;
+          }
         });
 
+        html += '</div>';
         resultDiv.innerHTML = html;
 
       } catch (error) {
