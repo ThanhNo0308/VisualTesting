@@ -27,7 +27,7 @@ elif os.path.exists(MODEL_JSON):
     model = XGBClassifier()
     model.load_model(MODEL_JSON)
 else:
-    raise FileNotFoundError(f"Model not found: {MODEL_PKL} or {MODEL_JSON}")
+    raise FileNotFoundError(f"Khong tim thay Model: {MODEL_PKL} or {MODEL_JSON}")
 
 meta = json.load(open(META_PATH, "r", encoding="utf-8"))
 label_map = meta["label_map"]
@@ -169,7 +169,6 @@ def predict_pair(original_path, variant_path):
     }
 
 def get_image_from_web(url, selector):
-    """Lấy ảnh từ web theo selector"""
     options = Options()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
@@ -251,7 +250,6 @@ def predict():
 
 @app.route("/crawl-all", methods=["POST"])
 def crawl_all():
-    """Crawl tất cả trang web trong danh sách"""
     try:
         websites = json.loads(request.headers.get('X-Websites', '[]'))
     except:
