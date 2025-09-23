@@ -10,11 +10,10 @@
 
 <body>
   <div class="container">
-    <h1>Hệ thống kiểm thử giao diện tự động</h1>
+    <h1>Hệ thống kiểm thử quảng cáo Website</h1>
 
-    <!-- So sánh ảnh trực tiếp -->
     <section class="card">
-      <h2>So sánh ảnh trực tiếp</h2>
+      <h2>So sánh trực tiếp</h2>
       <div id="directComparisons">
         <div class="comparison-item">
           <div class="upload-section">
@@ -41,13 +40,11 @@
       <button onclick="addComparison()" class="btnAdd">+ Thêm</button>
     </section>
 
-    <!-- Crawl web -->
     <section class="card">
-      <h2>Kiểm thử web tự động (so sánh quảng cáo chi nhánh)</h2>
+      <h2>Kiểm thử tự động</h2>
 
-      <!-- Ảnh gốc chung -->
       <div class="shared-original">
-        <h3>Ảnh quảng cáo gốc (dùng chung cho tất cả test)</h3>
+        <h3>Ảnh quảng cáo gốc</h3>
         <div class="upload-box">
           <input type="file" id="sharedOriginal" accept="image/*" required
             onchange="previewImage(this, document.getElementById('sharedPreview'))" />
@@ -55,7 +52,6 @@
         </div>
       </div>
 
-      <!-- Danh sách test -->
       <div id="crawlTests">
         <div class="crawl-item">
           <div class="crawl-inputs">
@@ -78,8 +74,8 @@
         </div>
       </div>
       <div class="control-buttons">
-        <button onclick="addCrawlTest()" class="btnAdd">+ Thêm trang web</button>
-        <button onclick="runAllTests()" class="btn-run-all">Chạy tất cả test</button>
+        <button onclick="addCrawlTest()" class="btnAdd">+ Thêm chi nhánh</button>
+        <button onclick="runAllTests()" class="btn-run-all">Chạy tất cả</button>
       </div>
       <div id="allResults"></div>
       <div id="resultModal" class="modal" onclick="closeModal()">
@@ -214,7 +210,6 @@
           return;
         }
 
-        // Tính toán summary
         const successful = data.results.filter(r => r.status === 'success');
         const summary = {
           safe: successful.filter(r => r.label === 'similar').length,
@@ -223,7 +218,6 @@
           failed: data.results.filter(r => r.status === 'failed').length
         };
 
-        // Hiển thị kết quả dạng grid
         let html = `
                 <h3>Kết quả test tổng hợp (${data.results.length} chi nhánh):</h3>
                 
